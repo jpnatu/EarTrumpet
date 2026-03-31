@@ -17,13 +17,16 @@ namespace EarTrumpet.UI.ViewModels
         public event EventHandler<object> StateChanged;
 
         public ModalDialogViewModel Dialog { get; }
-        public bool IsExpanded { get; private set; }
+        public bool IsExpanded => IsDevicePickerOpen;
+        public bool IsDevicePickerOpen { get; private set; }
         public bool IsExpandingOrCollapsing { get; private set; }
         public bool CanExpand => _mainViewModel.AllDevices.Count > 1;
         public string DeviceNameText => Devices.Count > 0 ? Devices[0].DisplayName : null;
         public FlyoutViewState State { get; private set; }
         public ObservableCollection<DeviceViewModel> Devices { get; private set; }
+        public ObservableCollection<DeviceViewModel> AllDevices => _mainViewModel.AllDevices;
         public ICommand ExpandCollapse { get; private set; }
+        public ICommand SelectDevice { get; private set; }
         public InputType LastInput { get; private set; }
         public ICommand DisplaySettingsChanged { get; }
 
@@ -39,7 +42,6 @@ namespace EarTrumpet.UI.ViewModels
         public FlyoutViewModel(DeviceCollectionViewModel mainViewModel, Action returnFocusToTray, AppSettings settings)
         {
             _settings = settings;
-            IsExpanded = _settings.IsExpanded;
             Dialog = new ModalDialogViewModel();
             Devices = new ObservableCollection<DeviceViewModel>();
             _returnFocusToTray = returnFocusToTray;
@@ -55,8 +57,18 @@ namespace EarTrumpet.UI.ViewModels
 
             ExpandCollapse = new RelayCommand(() =>
             {
-                IsExpandingOrCollapsing = true;
-                BeginClose(LastInput);
+                IsDevicePickerOpen = !IsDevicePickerOpen;
+                RaisePropertyChanged(nameof(IsDevicePickerOpen));
+                RaisePropertyChanged(nameof(IsExpanded));
+                InvalidateWindowSize();
+            });
+            SelectDevice = new RelayCommand<DeviceViewModel>(device =>
+            {
+                device.MakeDefaultDevice();
+                IsDevicePickerOpen = false;
+                RaisePropertyChanged(nameof(IsDevicePickerOpen));
+                RaisePropertyChanged(nameof(IsExpanded));
+                InvalidateWindowSize();
             });
             DisplaySettingsChanged = new RelayCommand(() => BeginClose(InputType.Command));
 
@@ -78,7 +90,7 @@ namespace EarTrumpet.UI.ViewModels
 
         private void AddDevice(DeviceViewModel device)
         {
-            if (IsExpanded || Devices.Count == 0)
+            if (Devices.Count == 0)
             {
                 device.Apps.CollectionChanged += Apps_CollectionChanged;
                 Devices.Insert(0, device);
@@ -148,6 +160,7 @@ namespace EarTrumpet.UI.ViewModels
         private void RaiseDevicesChanged()
         {
             RaisePropertyChanged(nameof(IsExpanded));
+            RaisePropertyChanged(nameof(IsDevicePickerOpen));
             RaisePropertyChanged(nameof(CanExpand));
             RaisePropertyChanged(nameof(DeviceNameText));
             InvalidateWindowSize();
@@ -191,36 +204,7 @@ namespace EarTrumpet.UI.ViewModels
 
         public void DoExpandCollapse()
         {
-            IsExpanded = !IsExpanded;
-            _settings.IsExpanded = IsExpanded;
-            if (IsExpanded)
-            {
-                // Add any that aren't existing.
-                foreach (var device in _mainViewModel.AllDevices)
-                {
-                    if (!Devices.Contains(device))
-                    {
-                        device.Apps.CollectionChanged += Apps_CollectionChanged;
-                        Devices.Insert(0, device);
-                    }
-                }
-            }
-            else
-            {
-                // Remove all but the default.
-                for (int i = Devices.Count - 1; i >= 0; i--)
-                {
-                    var device = Devices[i];
-                    if (device.Id != _mainViewModel.Default?.Id)
-                    {
-                        device.Apps.CollectionChanged -= Apps_CollectionChanged;
-                        Devices.Remove(device);
-                    }
-                }
-            }
-
-            UpdateTextVisibility();
-            RaiseDevicesChanged();
+            // No-op: device picker is now toggled inline via IsDevicePickerOpen.
         }
 
         private void InvalidateWindowSize()
@@ -253,6 +237,9 @@ namespace EarTrumpet.UI.ViewModels
                 case FlyoutViewState.Closing_Stage1:
                     _mainViewModel.OnTrayFlyoutHidden();
                     Dialog.IsVisible = false;
+                    IsDevicePickerOpen = false;
+                    RaisePropertyChanged(nameof(IsDevicePickerOpen));
+                    RaisePropertyChanged(nameof(IsExpanded));
 
                     if (LastInput == InputType.Keyboard && !IsExpandingOrCollapsing)
                     {

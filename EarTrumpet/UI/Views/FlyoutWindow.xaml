@@ -126,7 +126,51 @@
                     <ItemsControl Name="DevicesList"
                                   FocusVisualStyle="{x:Null}"
                                   IsTabStop="False"
-                                  ItemsSource="{Binding Devices}" />
+                                  ItemsSource="{Binding Devices}">
+                        <ItemsControl.Style>
+                            <Style TargetType="ItemsControl">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDevicePickerOpen}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.Style>
+                    </ItemsControl>
+                    <Grid Theme:Brush.Background="FlyoutBackground">
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDevicePickerOpen}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0" Height="{DynamicResource Mutable_DeviceTitleCellHeight}" />
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding AllDevices}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:DeviceViewModel}">
+                                    <Button Width="{StaticResource WindowAndItemSize}"
+                                            Height="{DynamicResource Mutable_DeviceTitleCellHeight}"
+                                            Command="{Binding DataContext.SelectDevice, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource ExpandCollapseButtonStyle}">
+                                        <TextBlock Margin="12,0,32,0"
+                                                   HorizontalAlignment="Left"
+                                                   Style="{StaticResource DeviceTitleTextStyle}"
+                                                   Text="{Binding DisplayName}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
                     <Button Height="{DynamicResource Mutable_DeviceTitleCellHeight}"
                             Command="{Binding ExpandCollapse}"
                             IsEnabled="{Binding CanExpand}">
